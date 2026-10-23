@@ -1,0 +1,102 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: aicte-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aicte_user
+      POSTGRES_PASSWORD: aicte_password
+      POSTGRES_DB: aicte_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aicte_user -d aicte_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    container_name: aicte-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadminpassword
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: aicte-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.backend
+    container_name: aicte-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://aicte_user:aicte_password@db:5432/aicte_db
+      ASYNC_DATABASE_URL: postgresql+asyncpg://aicte_user:aicte_password@db:5432/aicte_db
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadminpassword
+      S3_BUCKET: aicte-documents
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      JWT_SECRET: dev_jwt_secret_must_be_changed_in_prod_1234567890
+    ports:
+      - "8000:8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.backend
+    container_name: aicte-worker
+    restart: unless-stopped
+    command: ["python", "-m", "app.workers.scheduler"]
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql+psycopg2://aicte_user:aicte_password@db:5432/aicte_db
+      ASYNC_DATABASE_URL: postgresql+asyncpg://aicte_user:aicte_password@db:5432/aicte_db
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: ../infra/Dockerfile.frontend
+    container_name: aicte-web
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  minio_data:
