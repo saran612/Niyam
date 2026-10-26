@@ -10,6 +10,24 @@ class Settings(BaseSettings):
     ASYNC_DATABASE_URL: str = "postgresql+asyncpg://aicte_user:aicte_password@localhost:5433/aicte_db"
     TEST_DATABASE_URL: str = "sqlite:///./test.db"
 
+    @property
+    def sync_database_url(self) -> str:
+        url = self.DATABASE_URL
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+        elif url.startswith("postgresql://") and not url.startswith("postgresql+"):
+            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        return url
+
+    @property
+    def async_database_url_normalized(self) -> str:
+        url = self.ASYNC_DATABASE_URL
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgresql://") and not url.startswith("postgresql+"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
+
     S3_ENDPOINT: str = "http://localhost:9000"
     S3_ACCESS_KEY: str = "minioadmin"
     S3_SECRET_KEY: str = "minioadminpassword"

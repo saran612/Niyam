@@ -13,7 +13,7 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 # Synchronous engine for migrations, CLI seeds, and sync workers
 engine = create_engine(
-    settings.DATABASE_URL,
+    settings.sync_database_url,
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
@@ -22,7 +22,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Asynchronous engine for FastAPI async endpoints
 async_engine = create_async_engine(
-    settings.ASYNC_DATABASE_URL,
+    settings.async_database_url_normalized,
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
