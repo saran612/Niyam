@@ -87,3 +87,28 @@ app.include_router(routes_router, prefix="/api")
 @app.get("/health")
 def health_check():
     return {"status": "ok", "system_time": clock.now().isoformat()}
+
+
+@app.get("/health/db")
+def health_db():
+    from app.core.config import settings
+    # Redact password from DATABASE_URL
+    import re
+    safe_sync_url = re.sub(r":([^:@]+)@", ":****@", settings.sync_database_url)
+    diag = {
+        "configured_sync_url": safe_sync_url,
+        "is_postgres": "postgres" in settings.sync_database_url,
+    }
+    try:
+        from app.core.database import SessionLocal
+        from app.models.entities import User
+        with SessionLocal() as db:
+            count = db.query(User).count()
+            diag["user_count"] = count
+            diag["connected"] = True
+    except Exception as e:
+        import traceback
+        diag["connected"] = False
+        diag["error"] = str(e)
+        diag["traceback"] = traceback.format_exc()
+    return diag
