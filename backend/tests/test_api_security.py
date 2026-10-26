@@ -205,3 +205,13 @@ def test_api_admin_clock_advance_and_audit_verify(test_env):
     assert audit_resp.status_code == 200
     assert audit_resp.json()["is_valid"] is True
 
+
+def test_ro_can_access_audit_logs(test_env):
+    client, _ = test_env
+    login_resp = client.post("/api/auth/login", json={"email": "ro.south@aicte.gov.in", "password": "secret123"})
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    logs_resp = client.get("/api/audit/logs", headers=headers)
+    assert logs_resp.status_code == 200
+    assert isinstance(logs_resp.json(), list)
