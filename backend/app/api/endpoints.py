@@ -277,7 +277,7 @@ def verify_audit_trail(db: Annotated[Session, Depends(get_db)]):
 
 @audit_router.get("/logs")
 def get_audit_logs(
-    user: Annotated[User, Depends(require_roles([RoleEnum.ADMIN, RoleEnum.BUREAU_OFFICER]))],
+    user: Annotated[User, Depends(require_roles([RoleEnum.ADMIN, RoleEnum.BUREAU_OFFICER, RoleEnum.REGIONAL_OFFICER, RoleEnum.COMMITTEE]))],
     db: Annotated[Session, Depends(get_db)],
     limit: int = 50,
 ):
