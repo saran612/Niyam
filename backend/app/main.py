@@ -13,7 +13,7 @@ from app.api.endpoints import (
     routes_router,
 )
 from app.core.clock import clock
-from app.core.database import SessionLocal
+from app.core.database import Base, SessionLocal, engine
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -34,6 +34,19 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Auto-initialize database tables and deterministic seed if empty
+    try:
+        from app.models.entities import User
+        from app.services.seed import run_seed
+        Base.metadata.create_all(bind=engine)
+        with SessionLocal() as db:
+            user_count = db.query(User).count()
+            if user_count == 0:
+                logger.info("Empty database detected on startup. Auto-seeding initial AICTE dataset...")
+                run_seed()
+    except Exception as e:
+        logger.error("Auto-schema/seed error on startup: %s", e)
+
     # Initialize virtual clock offset from DB on startup
     with SessionLocal() as db:
         try:
